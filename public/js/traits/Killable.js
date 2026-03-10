@@ -1,8 +1,8 @@
-import Trait from '../Trait.js';
+import {Trait} from '../Entity.js';
 
 export default class Killable extends Trait {
     constructor() {
-        super();
+        super('killable');
         this.dead = false;
         this.deadTime = 0;
         this.removeAfter = 2;
@@ -24,24 +24,19 @@ export default class Killable extends Trait {
                 this.queue(() => {
                     level.entities.delete(entity);
                     
-                    // --- CUSTOM LEADERBOARD CODE ---
-                    // 1. Check if the entity that just died is Mario
+                    // --- LEADERBOARD TRIGGER ---
                     if (window.mario === entity) {
                         let finalScore = 0;
-                        
-                        // 2. Loop through his traits to find the 'Player' trait score
                         entity.traits.forEach(trait => {
                             if (trait.score !== undefined) {
                                 finalScore = trait.score;
                             }
                         });
-                        
-                        // 3. Send the message out to the React Website!
+                        // Notify the main website that Mario died
                         window.parent.postMessage({ type: 'MARIO_GAME_OVER', score: finalScore }, '*');
                     }
-                    // --------------------------------
                 });
             }
         }
     }
-
+}
