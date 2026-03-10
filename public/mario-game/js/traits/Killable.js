@@ -1,4 +1,6 @@
-import {Trait} from '../Entity.js';
+// We changed this from '../Entity.js' to '../Trait.js' 
+// as most versions of this engine keep Trait in its own file.
+import Trait from '../Trait.js';
 
 export default class Killable extends Trait {
     constructor() {
@@ -25,6 +27,7 @@ export default class Killable extends Trait {
                     level.entities.delete(entity);
                     
                     // --- LEADERBOARD TRIGGER ---
+                    // This sends the score to the main website when Mario dies
                     if (window.mario === entity) {
                         let finalScore = 0;
                         entity.traits.forEach(trait => {
@@ -32,7 +35,7 @@ export default class Killable extends Trait {
                                 finalScore = trait.score;
                             }
                         });
-                        // Notify the main website that Mario died
+                        // Notify the main website (parent window)
                         window.parent.postMessage({ type: 'MARIO_GAME_OVER', score: finalScore }, '*');
                     }
                 });
