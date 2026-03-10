@@ -6,7 +6,9 @@ export function loadMusicSheet(name) {
         .then(musicSheet => {
             const musicPlayer = new MusicPlayer();
             for (const [name, track] of Object.entries(musicSheet)) {
-                musicPlayer.addTrack(name, track.url);
+                // Remove the leading slash so it stays in the mario-game folder
+                const url = track.url.startsWith('/') ? track.url.substring(1) : track.url;
+                musicPlayer.addTrack(name, url);
             }
             return musicPlayer;
         });
