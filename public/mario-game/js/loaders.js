@@ -1,9 +1,9 @@
-import {loadImage} from './loaders.js';
-import SpriteSheet from './SpriteSheet.js';
+import {loadImage} from '../loaders.js';
+import SpriteSheet from '../SpriteSheet.js';
 
 export function loadFont() {
     // REMOVED leading slash: '/img/font.png' -> 'img/font.png'
-    return loadImage('./img/font.png')
+    return loadImage('img/font.png')
     .then(image => {
         const fontSprite = new SpriteSheet(image, 8, 8);
 
