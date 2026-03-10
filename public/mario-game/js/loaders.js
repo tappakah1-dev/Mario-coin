@@ -1,5 +1,5 @@
-import {loadImage} from '../loaders.js';
-import SpriteSheet from '../SpriteSheet.js';
+import {loadImage} from './loaders.js';
+import SpriteSheet from './SpriteSheet.js';
 
 export function loadFont() {
     // REMOVED leading slash: '/img/font.png' -> 'img/font.png'
