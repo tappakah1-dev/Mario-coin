@@ -51,35 +51,27 @@ const App = () => {
     // Safety check for API Key access
     let apiKey = "";
     try {
-        // In Vite, environment variables must start with VITE_ to be exposed to the client
+        // Accessing the Vercel environment variable
         apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     } catch (e) {
         apiKey = "";
     }
 
-    // If key is missing or undefined (common issue if Vercel vars haven't synced)
     if (!apiKey || apiKey === "undefined") {
         setMemeTopText("API KEY MISSING");
-        setMemeBottomText("REDEPLOY ON VERCEL");
+        setMemeBottomText("CHECK VERCEL VARS");
         setIsGenerating(false);
-        console.error("VITE_GEMINI_API_KEY is undefined. Ensure it is set in Vercel and you have triggered a new Deployment.");
         return;
     }
 
-    let currentTop = memeTopText.trim();
-    let currentBottom = memeBottomText.trim();
-
-    if (!currentTop) {
-      currentTop = topTextOptions[Math.floor(Math.random() * topTextOptions.length)];
-      setMemeTopText(currentTop);
-    }
-    if (!currentBottom) {
-      currentBottom = bottomTextOptions[Math.floor(Math.random() * bottomTextOptions.length)];
-      setMemeBottomText(currentBottom);
-    }
+    let currentTop = memeTopText.trim() || topTextOptions[Math.floor(Math.random() * topTextOptions.length)];
+    let currentBottom = memeBottomText.trim() || bottomTextOptions[Math.floor(Math.random() * bottomTextOptions.length)];
     
-    const fetchWithRetry = async (url, options, retries = 5) => {
-      const delays = [1000, 2000, 4000, 8000, 16000];
+    setMemeTopText(currentTop);
+    setMemeBottomText(currentBottom);
+    
+    const fetchWithRetry = async (url, options, retries = 3) => {
+      const delays = [1000, 2000, 4000];
       for (let i = 0; i < retries; i++) {
         try {
           const res = await fetch(url, options);
@@ -99,8 +91,8 @@ const App = () => {
       ];
       const randomStyle = styles[Math.floor(Math.random() * styles.length)];
 
-      // 1. Generate the Image Prompt using Gemini 2.5 Flash
-      const textUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+      // 1. Generate the Image Prompt using Gemini 1.5 Flash (Stable)
+      const textUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
       const textPayload = {
         contents: [{ parts: [{ text: `Create a detailed image generation prompt for a funny crypto meme coin named $MARIO. The image must visually represent this specific meme text: Top Text: "${currentTop}", Bottom Text: "${currentBottom}". The visual style MUST be exactly: "${randomStyle}". Return JSON with 'imagePrompt' only. Make it feature a Super Mario-like character in a crypto/trading situation matching the text.` }] }],
         generationConfig: {
@@ -112,19 +104,49 @@ const App = () => {
       const textData = await fetchWithRetry(textUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(textPayload) });
       const { imagePrompt } = JSON.parse(textData.candidates[0].content.parts[0].text);
 
-      // 2. Generate the Image using Imagen 4.0
-      const imageUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
-      const imagePayload = { instances: { prompt: imagePrompt }, parameters: { sampleCount: 1 } };
-      const imageData = await fetchWithRetry(imageUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(imagePayload) });
+      // 2. A list of Google Imagen endpoints to try in order of preference
+      const endpointsToTry = [
+          // 1. Production v1 Imagen 3 (Highest Quota)
+          `https://generativelanguage.googleapis.com/v1/models/imagen-3.0-generate-001:predict?key=${apiKey}`,
+          // 2. Fallback to v1beta 002 if 001 is missing
+          `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
+          // 3. Fallback to preview 4.0 (70 Quota limit)
+          `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`
+      ];
 
-      if (imageData.predictions && imageData.predictions[0]) {
-          setMemeImageUrl(`data:image/png;base64,${imageData.predictions[0].bytesBase64Encoded}`);
-          setMemeGenerated(true);
+      let imageData = null;
+      let success = false;
+
+      // Loop through endpoints until one works
+      for (const endpoint of endpointsToTry) {
+          try {
+              const imagePayload = { instances: { prompt: imagePrompt }, parameters: { sampleCount: 1 } };
+              imageData = await fetchWithRetry(endpoint, { 
+                  method: 'POST', 
+                  headers: { 'Content-Type': 'application/json' }, 
+                  body: JSON.stringify(imagePayload) 
+              });
+              
+              if (imageData && imageData.predictions && imageData.predictions[0]) {
+                  setMemeImageUrl(`data:image/png;base64,${imageData.predictions[0].bytesBase64Encoded}`);
+                  setMemeGenerated(true);
+                  success = true;
+                  break; // Exit the loop on success
+              }
+          } catch (endpointError) {
+              console.warn(`Endpoint failed: ${endpoint}`, endpointError);
+              // Continue to next endpoint
+          }
       }
+
+      if (!success) {
+          throw new Error("All image endpoints failed.");
+      }
+
     } catch (err) {
       console.error("Failed to generate meme:", err);
       setMemeTopText("AI ERROR");
-      setMemeBottomText("CHECK CONSOLE");
+      setMemeBottomText("TRY AGAIN LATER");
     } finally {
       setIsGenerating(false);
     }
