@@ -27,19 +27,12 @@ const App = () => {
     if (isGenerating) return;
     setIsGenerating(true);
     
-    // SAFETY BRIDGE for API Key access
-    let apiKey = "";
-    try {
-      // This is the standard Vite way to access variables
-      apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    } catch (e) {
-      // Fallback for environments that don't support import.meta
-      apiKey = "";
-    }
+    // FETCH THE API KEY
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-    if (!apiKey) {
+    if (!apiKey || apiKey === "" || apiKey.includes("Your Actual")) {
       setMemeTopText("API KEY ERROR");
-      setMemeBottomText("CHECK VERCEL VARS");
+      setMemeBottomText("CHECK VERCEL SETTINGS");
       setIsGenerating(false);
       return;
     }
@@ -49,6 +42,7 @@ const App = () => {
     setMemeTopText(currentTop);
     setMemeBottomText(currentBottom);
 
+    // EXPONENTIAL BACKOFF FETCH
     const fetchWithRetry = async (url, options, retries = 5) => {
         const delays = [1000, 2000, 4000, 8000, 16000];
         for (let i = 0; i < retries; i++) {
@@ -67,7 +61,7 @@ const App = () => {
       // 1. GENERATE THE PROMPT
       const textUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
       const textPayload = {
-        contents: [{ parts: [{ text: `Create a funny image prompt for a Mario crypto meme: "${currentTop} ${currentBottom}". Style: Retro 8-bit pixel art. Return JSON with 'imagePrompt' key only.` }] }],
+        contents: [{ parts: [{ text: `Create a funny image prompt for a Mario crypto meme: "${currentTop} ${currentBottom}". Style: Retro 8-bit. Return JSON with 'imagePrompt' key only.` }] }],
         generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { imagePrompt: { type: "STRING" } } } }
       };
 
@@ -109,12 +103,6 @@ const App = () => {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
-
-  const startGame = () => {
-    if (username.trim().length < 3) return;
-    setScore(0);
-    setGameState("playing");
-  };
 
   return (
     <div className="min-h-screen bg-[#5c94fc] text-white selection:bg-red-500 overflow-x-hidden pb-20 font-sans">
@@ -188,7 +176,7 @@ const App = () => {
             {gameState === 'start' && (
               <div className="space-y-6 w-full max-w-xs">
                 <input type="text" placeholder="X USERNAME" value={username} onChange={e => setUsername(e.target.value)} className="w-full p-3 border-4 border-black text-black text-xs pixel-font" />
-                <button onClick={startGame} className="bg-green-500 w-full p-4 mario-border pixel-font text-xs flex items-center justify-center gap-2">
+                <button onClick={() => setGameState('playing')} className="bg-green-500 w-full p-4 mario-border pixel-font text-xs flex items-center justify-center gap-2">
                   <Play size={18} /> START RUN
                 </button>
               </div>
