@@ -40,7 +40,7 @@ function createSpawner() {
 }
 
 function loadPattern(name) {
-    return loadJSON(`/sprites/patterns/${name}.json`);
+    return loadJSON(`sprites/patterns/${name}.json`);
 }
 
 function setupBehavior(level) {
