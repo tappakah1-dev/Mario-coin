@@ -63,8 +63,18 @@ const App = () => {
         return;
     }
 
-    let currentTop = memeTopText.trim() || topTextOptions[Math.floor(Math.random() * topTextOptions.length)];
-    let currentBottom = memeBottomText.trim() || bottomTextOptions[Math.floor(Math.random() * bottomTextOptions.length)];
+    // Always pick new random options when clicking the button, 
+    // unless the user has manually typed something original.
+    const isTopDefault = !memeTopText || topTextOptions.includes(memeTopText);
+    const isBottomDefault = !memeBottomText || bottomTextOptions.includes(memeBottomText);
+
+    const currentTop = isTopDefault 
+        ? topTextOptions[Math.floor(Math.random() * topTextOptions.length)] 
+        : memeTopText.trim();
+        
+    const currentBottom = isBottomDefault 
+        ? bottomTextOptions[Math.floor(Math.random() * bottomTextOptions.length)] 
+        : memeBottomText.trim();
     
     setMemeTopText(currentTop);
     setMemeBottomText(currentBottom);
@@ -84,19 +94,25 @@ const App = () => {
     };
 
     try {
-      // --- 1. HARDCODED PROMPT VARIATIONS (No Gemini Needed) ---
+      // --- 1. EXPANDED HARDCODED PROMPT VARIATIONS ---
       const styleTemplates = [
         `Retro 8-bit pixel art of a plumber character with a red hat jumping to hit a golden crypto coin block. Background is a vibrant blue mushroom kingdom with green hills. High detail pixel art style.`,
         `Cinematic 3D render of a plumber character riding a green dinosaur through a galaxy of floating golden coins and green candles. Heroic lighting, epic space atmosphere, Nintendo-inspired 3D style.`,
         `Vintage comic book illustration of a red-capped hero diving into a giant green pipe filled with gold coins and dollar signs. Bold ink lines, halftone dots, high action crypto trading scene.`,
         `Hyper-realistic Saturday morning cartoon style showing a plumber character shocked at a giant computer screen filled with green vertical bar charts. Bright colors, thick outlines, funny expression.`,
         `Anime-style illustration of a hero in red overalls standing on top of a giant golden coin mountain under a starry night sky. Dramatic wind effects, vibrant Japanese art style.`,
-        `3D isometric diorama of a crypto trading station inside a castle, featuring a plumber character watching 'MARIO' price charts on many monitors. Cute stylized 3D environment.`
+        `3D isometric diorama of a crypto trading station inside a castle, featuring a plumber character watching 'MARIO' price charts on many monitors. Cute stylized 3D environment.`,
+        `Street art graffiti mural of Mario wearing gold chains and sunglasses, holding a bag of golden coins. Gritty brick wall background, neon paint splatters, urban cool style.`,
+        `Ethereal low-poly 3D art of a plumber character floating in a digital void surrounded by glowing geometric coin shapes. Minimalist, artistic, high-tech Nintendo aesthetic.`,
+        `Claymation style scene (like Wallace and Gromit) of Mario and Luigi frantically checking a laptop with a giant green rocket ship on the screen. Soft lighting, tactile textures.`,
+        `Cyberpunk futuristic version of Mario with a robotic arm, standing in a rainy neon-lit Mushroom City, looking at a digital holographic coin ticker. Gritty sci-fi style.`
       ];
 
       // Pick a random style and combine with a general thematic instruction
       const randomStyle = styleTemplates[Math.floor(Math.random() * styleTemplates.length)];
-      const imagePrompt = `Visual scene for a crypto meme: ${randomStyle}. The mood of the scene represents: ${currentTop} and ${currentBottom}. Make it look like a Super Mario parody.`;
+      
+      // Incorporate the text into the visual prompt to help the AI understand the context
+      const imagePrompt = `Visual scene for a crypto meme coin called $MARIO. Visual Style: ${randomStyle}. The character's action and the scene's composition should reflect the theme: "${currentTop} ${currentBottom}". Make it look like a funny Super Mario parody involving trading and digital gold coins. High quality, clear composition.`;
 
       // --- 2. GENERATE THE IMAGE (With Imagen Fallbacks) ---
       const endpointsToTry = [
