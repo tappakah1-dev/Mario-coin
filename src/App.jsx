@@ -84,40 +84,19 @@ const App = () => {
     };
 
     try {
-      const styles = [
-        "8-bit retro pixel art", "high-quality 3D cinematic render", "Saturday morning cartoon style",
-        "hyper-realistic photography with dramatic lighting", "vintage comic book illustration", "vibrant Japanese anime style"
+      // --- 1. HARDCODED PROMPT VARIATIONS (No Gemini Needed) ---
+      const styleTemplates = [
+        `Retro 8-bit pixel art of a plumber character with a red hat jumping to hit a golden crypto coin block. Background is a vibrant blue mushroom kingdom with green hills. High detail pixel art style.`,
+        `Cinematic 3D render of a plumber character riding a green dinosaur through a galaxy of floating golden coins and green candles. Heroic lighting, epic space atmosphere, Nintendo-inspired 3D style.`,
+        `Vintage comic book illustration of a red-capped hero diving into a giant green pipe filled with gold coins and dollar signs. Bold ink lines, halftone dots, high action crypto trading scene.`,
+        `Hyper-realistic Saturday morning cartoon style showing a plumber character shocked at a giant computer screen filled with green vertical bar charts. Bright colors, thick outlines, funny expression.`,
+        `Anime-style illustration of a hero in red overalls standing on top of a giant golden coin mountain under a starry night sky. Dramatic wind effects, vibrant Japanese art style.`,
+        `3D isometric diorama of a crypto trading station inside a castle, featuring a plumber character watching 'MARIO' price charts on many monitors. Cute stylized 3D environment.`
       ];
-      const randomStyle = styles[Math.floor(Math.random() * styles.length)];
 
-      // --- 1. GENERATE THE IMAGE PROMPT (With Text Model Fallbacks) ---
-      const textModels = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro"];
-      let imagePrompt = "";
-      let textSuccess = false;
-
-      for (const model of textModels) {
-          try {
-              const textUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-              const textPayload = {
-                  contents: [{ parts: [{ text: `Create a detailed image generation prompt for a funny crypto meme coin named $MARIO. The image must visually represent this specific meme text: Top Text: "${currentTop}", Bottom Text: "${currentBottom}". The visual style MUST be exactly: "${randomStyle}". Return JSON with 'imagePrompt' only. Make it feature a Super Mario-like character in a crypto/trading situation matching the text.` }] }],
-                  generationConfig: {
-                      responseMimeType: "application/json",
-                      responseSchema: { type: "OBJECT", properties: { imagePrompt: { type: "STRING" } } }
-                  }
-              };
-              const textData = await fetchWithRetry(textUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(textPayload) });
-              if (textData?.candidates?.[0]?.content?.parts?.[0]?.text) {
-                  const parsed = JSON.parse(textData.candidates[0].content.parts[0].text);
-                  imagePrompt = parsed.imagePrompt;
-                  textSuccess = true;
-                  break;
-              }
-          } catch (e) {
-              console.warn(`Text model ${model} failed, trying next...`);
-          }
-      }
-
-      if (!textSuccess) throw new Error("Could not connect to Gemini text models.");
+      // Pick a random style and combine with a general thematic instruction
+      const randomStyle = styleTemplates[Math.floor(Math.random() * styleTemplates.length)];
+      const imagePrompt = `Visual scene for a crypto meme: ${randomStyle}. The mood of the scene represents: ${currentTop} and ${currentBottom}. Make it look like a Super Mario parody.`;
 
       // --- 2. GENERATE THE IMAGE (With Imagen Fallbacks) ---
       const endpointsToTry = [
