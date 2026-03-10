@@ -82,7 +82,7 @@ async function main(canvas) {
             }
         });
 
-        level.comp.layers.push(createCollisionLayer(level));
+    //  level.comp.layers.push(createCollisionLayer(level));
 
         const dashboardLayer = createDashboardLayer(font, mario);
         level.comp.layers.push(dashboardLayer);
