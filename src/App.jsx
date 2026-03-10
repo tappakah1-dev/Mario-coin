@@ -51,7 +51,6 @@ const App = () => {
     // Safety check for API Key access
     let apiKey = "";
     try {
-        // Accessing the Vercel environment variable
         apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     } catch (e) {
         apiKey = "";
@@ -70,8 +69,8 @@ const App = () => {
     setMemeTopText(currentTop);
     setMemeBottomText(currentBottom);
     
-    const fetchWithRetry = async (url, options, retries = 3) => {
-      const delays = [1000, 2000, 4000];
+    const fetchWithRetry = async (url, options, retries = 2) => {
+      const delays = [1000, 2000];
       for (let i = 0; i < retries; i++) {
         try {
           const res = await fetch(url, options);
@@ -91,57 +90,64 @@ const App = () => {
       ];
       const randomStyle = styles[Math.floor(Math.random() * styles.length)];
 
-      // 1. Generate the Image Prompt using Gemini 1.5 Flash (Stable)
-      const textUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-      const textPayload = {
-        contents: [{ parts: [{ text: `Create a detailed image generation prompt for a funny crypto meme coin named $MARIO. The image must visually represent this specific meme text: Top Text: "${currentTop}", Bottom Text: "${currentBottom}". The visual style MUST be exactly: "${randomStyle}". Return JSON with 'imagePrompt' only. Make it feature a Super Mario-like character in a crypto/trading situation matching the text.` }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: { type: "OBJECT", properties: { imagePrompt: { type: "STRING" } } }
-        }
-      };
+      // --- 1. GENERATE THE IMAGE PROMPT (With Text Model Fallbacks) ---
+      const textModels = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro"];
+      let imagePrompt = "";
+      let textSuccess = false;
 
-      const textData = await fetchWithRetry(textUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(textPayload) });
-      const { imagePrompt } = JSON.parse(textData.candidates[0].content.parts[0].text);
+      for (const model of textModels) {
+          try {
+              const textUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+              const textPayload = {
+                  contents: [{ parts: [{ text: `Create a detailed image generation prompt for a funny crypto meme coin named $MARIO. The image must visually represent this specific meme text: Top Text: "${currentTop}", Bottom Text: "${currentBottom}". The visual style MUST be exactly: "${randomStyle}". Return JSON with 'imagePrompt' only. Make it feature a Super Mario-like character in a crypto/trading situation matching the text.` }] }],
+                  generationConfig: {
+                      responseMimeType: "application/json",
+                      responseSchema: { type: "OBJECT", properties: { imagePrompt: { type: "STRING" } } }
+                  }
+              };
+              const textData = await fetchWithRetry(textUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(textPayload) });
+              if (textData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+                  const parsed = JSON.parse(textData.candidates[0].content.parts[0].text);
+                  imagePrompt = parsed.imagePrompt;
+                  textSuccess = true;
+                  break;
+              }
+          } catch (e) {
+              console.warn(`Text model ${model} failed, trying next...`);
+          }
+      }
 
-      // 2. A list of Google Imagen endpoints to try in order of preference
+      if (!textSuccess) throw new Error("Could not connect to Gemini text models.");
+
+      // --- 2. GENERATE THE IMAGE (With Imagen Fallbacks) ---
       const endpointsToTry = [
-          // 1. Production v1 Imagen 3 (Highest Quota)
           `https://generativelanguage.googleapis.com/v1/models/imagen-3.0-generate-001:predict?key=${apiKey}`,
-          // 2. Fallback to v1beta 002 if 001 is missing
           `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
-          // 3. Fallback to preview 4.0 (70 Quota limit)
           `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`
       ];
 
-      let imageData = null;
       let success = false;
-
-      // Loop through endpoints until one works
       for (const endpoint of endpointsToTry) {
           try {
               const imagePayload = { instances: { prompt: imagePrompt }, parameters: { sampleCount: 1 } };
-              imageData = await fetchWithRetry(endpoint, { 
+              const imageData = await fetchWithRetry(endpoint, { 
                   method: 'POST', 
                   headers: { 'Content-Type': 'application/json' }, 
                   body: JSON.stringify(imagePayload) 
               });
               
-              if (imageData && imageData.predictions && imageData.predictions[0]) {
+              if (imageData?.predictions?.[0]?.bytesBase64Encoded) {
                   setMemeImageUrl(`data:image/png;base64,${imageData.predictions[0].bytesBase64Encoded}`);
                   setMemeGenerated(true);
                   success = true;
-                  break; // Exit the loop on success
+                  break;
               }
           } catch (endpointError) {
-              console.warn(`Endpoint failed: ${endpoint}`, endpointError);
-              // Continue to next endpoint
+              console.warn(`Imagen endpoint failed: ${endpoint}`);
           }
       }
 
-      if (!success) {
-          throw new Error("All image endpoints failed.");
-      }
+      if (!success) throw new Error("All image endpoints failed.");
 
     } catch (err) {
       console.error("Failed to generate meme:", err);
