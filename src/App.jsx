@@ -48,12 +48,22 @@ const App = () => {
     if (isGenerating) return;
     setIsGenerating(true);
     
-    // SAFETY BRIDGE: This prevents the app from crashing if the env var is missing
+    // Safety check for API Key access
     let apiKey = "";
     try {
-        apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        // First try to use the Vercel environment variable
+        apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
     } catch (e) {
+        // Fallback for environment where import.meta might not be defined
         apiKey = "";
+    }
+
+    // If key is missing, show an error on the meme itself
+    if (!apiKey || apiKey === "") {
+        setMemeTopText("API KEY MISSING");
+        setMemeBottomText("SET VITE_GEMINI_API_KEY");
+        setIsGenerating(false);
+        return;
     }
 
     let currentTop = memeTopText.trim();
@@ -83,15 +93,14 @@ const App = () => {
     };
 
     try {
-      if (!apiKey) throw new Error("API Key is missing. Add VITE_GEMINI_API_KEY to Vercel.");
-
       const styles = [
         "8-bit retro pixel art", "high-quality 3D cinematic render", "Saturday morning cartoon style",
         "hyper-realistic photography with dramatic lighting", "vintage comic book illustration", "vibrant Japanese anime style"
       ];
       const randomStyle = styles[Math.floor(Math.random() * styles.length)];
 
-      const textUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+      // 1. Generate the Image Prompt using Gemini 1.5 Flash (Stable)
+      const textUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
       const textPayload = {
         contents: [{ parts: [{ text: `Create a detailed image generation prompt for a funny crypto meme coin named $MARIO. The image must visually represent this specific meme text: Top Text: "${currentTop}", Bottom Text: "${currentBottom}". The visual style MUST be exactly: "${randomStyle}". Return JSON with 'imagePrompt' only. Make it feature a Super Mario-like character in a crypto/trading situation matching the text.` }] }],
         generationConfig: {
@@ -103,7 +112,8 @@ const App = () => {
       const textData = await fetchWithRetry(textUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(textPayload) });
       const { imagePrompt } = JSON.parse(textData.candidates[0].content.parts[0].text);
 
-      const imageUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+      // 2. Generate the Image using Imagen 3.0 (Stable)
+      const imageUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`;
       const imagePayload = { instances: { prompt: imagePrompt }, parameters: { sampleCount: 1 } };
       const imageData = await fetchWithRetry(imageUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(imagePayload) });
 
@@ -113,8 +123,8 @@ const App = () => {
       }
     } catch (err) {
       console.error("Failed to generate meme:", err);
-      setMemeTopText("ERROR");
-      setMemeBottomText("SET VERCEL KEY");
+      setMemeTopText("AI ERROR");
+      setMemeBottomText("TRY AGAIN LATER");
     } finally {
       setIsGenerating(false);
     }
