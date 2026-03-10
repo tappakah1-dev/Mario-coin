@@ -1,22 +1,23 @@
-import {loadImage} from '../loaders.js';
-import SpriteSheet from '../SpriteSheet.js';
+function fixPath(url) {
+    if (typeof url === 'string' && url.startsWith('/')) {
+        return url.substring(1);
+    }
+    return url;
+}
 
-export function loadFont() {
-    // REMOVED leading slash: '/img/font.png' -> 'img/font.png'
-    return loadImage('img/font.png')
-    .then(image => {
-        const fontSprite = new SpriteSheet(image, 8, 8);
+export function loadImage(url) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.addEventListener('load', () => resolve(image));
+        image.addEventListener('error', () => reject(new Error(`Failed image: ${url}`)));
+        image.src = fixPath(url);
+    });
+}
 
-        const chars = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~';
-
-        const size = 8;
-        const rowLen = image.width;
-        for (let [index, char] of [...chars].entries()) {
-            const x = index * size % rowLen;
-            const y = Math.floor(index * size / rowLen) * size;
-            fontSprite.define(char, x, y, size, size);
-        }
-
-        return fontSprite;
+export function loadJSON(url) {
+    return fetch(fixPath(url))
+    .then(r => {
+        if (!r.ok) throw new Error(`Failed JSON: ${url}`);
+        return r.json();
     });
 }

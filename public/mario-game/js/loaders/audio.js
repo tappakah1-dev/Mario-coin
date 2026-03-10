@@ -13,20 +13,16 @@ export function loadAudioBoard(name, audioContext) {
                         audioBoard.addAudio(name, buffer);
                     });
             }))
-            .then(() => {
-                return audioBoard;
-            });
+            .then(() => audioBoard);
         });
 }
 
 export function createAudioLoader(context) {
     return function loadAudio(url) {
-        return fetch(url)
-           .then(response => {
-                return response.arrayBuffer();
-            })
-            .then(arrayBuffer => {
-                return context.decodeAudioData(arrayBuffer);
-            });
+        // Remove slash so it doesn't look at root domain
+        const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
+        return fetch(cleanUrl)
+           .then(r => r.arrayBuffer())
+           .then(buffer => context.decodeAudioData(buffer));
     }
 }
