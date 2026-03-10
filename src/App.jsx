@@ -48,11 +48,13 @@ const App = () => {
     if (isGenerating) return;
     setIsGenerating(true);
     
-    // CRITICAL: Updated for Vercel deployment environment variables.
-    // Wrapped in a check to prevent compilation errors in non-ESM environments.
-    const apiKey = typeof import.meta !== 'undefined' && import.meta.env 
-      ? import.meta.env.VITE_GEMINI_API_KEY 
-      : "";
+    // SAFETY BRIDGE: This prevents the app from crashing if the env var is missing
+    let apiKey = "";
+    try {
+        apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    } catch (e) {
+        apiKey = "";
+    }
 
     let currentTop = memeTopText.trim();
     let currentBottom = memeBottomText.trim();
@@ -81,7 +83,7 @@ const App = () => {
     };
 
     try {
-      if (!apiKey) throw new Error("API Key is missing. Check your Vercel Environment Variables.");
+      if (!apiKey) throw new Error("API Key is missing. Add VITE_GEMINI_API_KEY to Vercel.");
 
       const styles = [
         "8-bit retro pixel art", "high-quality 3D cinematic render", "Saturday morning cartoon style",
@@ -111,8 +113,8 @@ const App = () => {
       }
     } catch (err) {
       console.error("Failed to generate meme:", err);
-      setMemeTopText("API ERROR");
-      setMemeBottomText(err.message.includes("API Key") ? "SET VERCEL VARS" : "TRY AGAIN LATER");
+      setMemeTopText("ERROR");
+      setMemeBottomText("SET VERCEL KEY");
     } finally {
       setIsGenerating(false);
     }
@@ -150,9 +152,7 @@ const App = () => {
   }, []);
 
   const startGame = () => {
-    if (username.trim().length < 3) {
-      return;
-    }
+    if (username.trim().length < 3) return;
     setScore(0);
     setGameState("playing");
   };
