@@ -1,5 +1,5 @@
-import {loadImage} from '../../loaders.js';
-import SpriteSheet from '../../SpriteSheet.js';
+import {loadImage} from '../loaders.js';
+import SpriteSheet from '../SpriteSheet.js';
 
 const CHARS = ' 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ©!-×.';
 
